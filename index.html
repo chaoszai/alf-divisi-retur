@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Form Retur & Konfirmasi Barang</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    :root {
+      --primary: #white;
+      --secondary: #4caf50;
+      --accent: #2c3e50;
+      --danger: #e74c3c;
+    }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+mj,k/;      margin: 30px;
+      color: var(--accent);
+    }
+    h2, h3 {
+      color: var(--black);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: var(--primary);
+      color: black;
+    }
+    input, button, select {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    .form-row {
+      margin-bottom: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .form-row label {
+      width: 140px;
+      font-weight: bold;
+    }
+    .form-row input, .form-row select {
+      flex: 1;
+      min-width: 200px;
+    }
+    .inline-inputs input {
+      margin-right: 10px;
+      min-width: 120px;
+    }
+    button {
+      background-color: var(--primary);
+      color: black;
+      border: none;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #388e3c;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .action-btn {
+      cursor: pointer;
+      color: var(--danger);
+      margin-left: 5px;
+    }
+    .edit-btn {
+      cursor: pointer;
+      color: var(--primary);
+      margin-left: 5px;
+    }
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h2>Form Retur & Konfirmasi Barang</h2>
+
+  <div class="form-row">
+    <label for="formMode">Mode Form:</label>
+    <select id="formMode" onchange="switchFormMode()">
+      <option value="retur">Retur</option>
+      <option value="konfirmasi">Konfirmasi</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="noNota">No Nota:</label>
+    <input type="text" id="noNota" readonly />
+  </div>
+
+  <div class="form-row">
+    <label for="tglNota">Tanggal Nota:</label>
+    <input type="date" id="tglNota" />
+  </div>
+
+  <div class="form-row">
+    <label for="admin">Admin:</label>
+    <select id="admin">
+      <option value="">-- Pilih Admin --</option>
+      <option value="Dea">Dea</option>
+      <option value="Selia">Selia</option>
+      <option value="Siwi">Siwi</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label for="vendor">Vendor:</label>
+    <select id="vendor">
+      <option value="">-- Pilih Vendor --</option>
+      <option value="Megatech">Megatech</option>
+      <option value="Surya">Surya</option>
+      <option value="GMT">GMT</option>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <input type="text" id="barcode" placeholder="Barcode" oninput="isiNamaBarang()" />
+    <input type="text" id="namaBarang" placeholder="Nama Barang" readonly />
+    <input type="number" id="qty" placeholder="Qty" />
+    <input type="text" id="keterangan" placeholder="Keterangan" />
+    <input type="date" id="tglKonfirmasi" placeholder="Tgl Konfirmasi" class="konf-only hidden" />
+    <input type="date" id="tglAmbil" placeholder="Tgl Ambilan" />
+    <button onclick="tambahBarang()">➕ Tambah</button>
+  </div>
+
+  <table id="tabelBarang">
+    <thead>
+      <tr id="tableHeaderRow"></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <button class="no-print" onclick="kirimData()">💾 Simpan ke Google Sheets</button>
+  <button class="no-print" onclick="cetakPDF()">🖨 Cetak PDF</button>
+  <button class="no-print" onclick="clearForm()">🧹 Clear Form</button>
+
+  <script>
+    const masterDataURL = "https://script.google.com/macros/s/AKfycbwREG26axLg8M6LKpxKD66eBwSdYTYqpUowZ9S9FrHaur1fJNL2Bi3RhrIiYz-5Q0w/exec";
+    const scriptURL = "https://script.google.com/macros/s/AKfycbznK2faIiKAgrPFqu4HA6uFfY1avOzlMi25IMVHjZUc45jGdZac0n0oujELauyXPPQ/exec";
+
+    let masterBarang = {};
+    let dataBarang = [];
+
+    fetch(masterDataURL)
+      .then(res => res.json())
+      .then(data => masterBarang = data)
+      .catch(() => alert("Gagal ambil data master barang."));
+
+    function isiNamaBarang() {
+      const barcode = document.getElementById('barcode').value.trim();
+      document.getElementById('namaBarang').value = masterBarang[barcode] || '';
+    }
+
+    function switchFormMode() {
+      const mode = document.getElementById('formMode').value;
+      const noNota = document.getElementById('noNota');
+      document.querySelector('.konf-only').classList.toggle('hidden', mode !== 'konfirmasi');
+
+      const now = new Date();
+      const datePart = now.toISOString().slice(0,10).replace(/-/g, '');
+      const prefix = mode === 'konfirmasi' ? 'KONF' : 'RET';
+      const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+      noNota.value = `${prefix}-${datePart}-${randomPart}`;
+
+      const headerRow = document.getElementById("tableHeaderRow");
+      headerRow.innerHTML = `
+        <th>Barcode</th>
+        <th>Nama Barang</th>
+        <th>Qty</th>
+        <th>Keterangan</th>
+        ${mode === 'konfirmasi' ? '<th>Tanggal Konfirmasi</th>' : ''}
+        <th>Tanggal Ambilan</th>
+        <th>Aksi</th>`;
+        
+      renderTabel();
+    }
+
+    function formatTanggal(inputDate) {
+      if (!inputDate) return '';
+      const [year, month, day] = inputDate.split("-");
+      return `${day}/${month}/${year}`;
+    }
+
+    function tambahBarang() {
+      const item = {
+        barcode: document.getElementById('barcode').value.trim(),
+        namaBarang: document.getElementById('namaBarang').value.trim(),
+        qty: document.getElementById('qty').value,
+        keterangan: document.getElementById('keterangan').value,
+        tglKonfirmasi: formatTanggal(document.getElementById('tglKonfirmasi').value),
+        tglAmbil: formatTanggal(document.getElementById('tglAmbil').value)
+      };
+      if (!item.barcode || !item.namaBarang || !item.qty) {
+        alert('Lengkapi data barang.');
+        return;
+      }
+      dataBarang.push(item);
+      renderTabel();
+      clearForm();
+    }
+
+    function renderTabel() {
+      const tbody = document.querySelector('#tabelBarang tbody');
+      const mode = document.getElementById('formMode').value;
+      tbody.innerHTML = '';
+      dataBarang.forEach((item, i) => {
+        const row = tbody.insertRow();
+        row.insertCell().textContent = item.barcode;
+        row.insertCell().textContent = item.namaBarang;
+        row.insertCell().textContent = item.qty;
+        row.insertCell().textContent = item.keterangan;
+        if (mode === 'konfirmasi') row.insertCell().textContent = item.tglKonfirmasi;
+        row.insertCell().textContent = item.tglAmbil;
+        row.insertCell().innerHTML = `<span class='action-btn' onclick='hapusBarang(${i})'>Hapus</span>`;
+      });
+    }
+
+    function clearForm() {
+      ['barcode','namaBarang','qty','keterangan','tglAmbil','tglKonfirmasi'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('barcode').focus();
+    }
+
+    function hapusBarang(i) {
+      dataBarang.splice(i, 1);
+      renderTabel();
+    }
+
+    function kirimData() {
+      const payload = {
+        noNota: document.getElementById('noNota').value,
+        tglNota: document.getElementById('tglNota').value,
+        admin: document.getElementById('admin').value,
+        vendor: document.getElementById('vendor').value,
+        items: dataBarang
+      };
+      fetch(scriptURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.text())
+      .then(text => alert("Data berhasil dikirim: " + text))
+      .catch(err => alert("Gagal mengirim data.\n" + err.message));
+    }
+
+    function cetakPDF() {
+  const noNota = document.getElementById('noNota').value;
+  const vendor = document.getElementById('vendor').value;
+  const admin = document.getElementById('admin').value;
+  const mode = document.getElementById('formMode').value;
+
+  let rowsHTML = '';
+  dataBarang.forEach(item => {
+    rowsHTML += `<tr>
+      <td>${item.barcode}</td>
+      <td>${item.namaBarang}</td>
+      <td>${item.qty}</td>
+      <td>${item.keterangan}</td>`;
+    if (mode === 'konfirmasi') rowsHTML += `<td>${item.tglKonfirmasi}</td>`;
+    rowsHTML += `<td>${item.tglAmbil}</td></tr>`;
+  });
+
+  const content = `
+    <style>
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10px;
+        page-break-inside: auto;
+      }
+      tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+      thead {
+        display: table-header-group;
+      }
+      tfoot {
+        display: table-footer-group;
+      }
+      th, td {
+        padding: 4px;
+        border: 1px solid #ccc;
+        text-align: left;
+      }
+    </style>
+    <div style="font-family: Arial, sans-serif; font-size: 10px; color: black; padding: 20px;">
+      <h3 style="margin: 0;">ALF Sparepart & Acc Hp</h3>
+      <p style="margin: 4px 0;"><strong>Alamat:</strong> Jl. Veteran No.75, Bareng Lor, Klaten Utara, Klaten</p>
+      <h4 style="margin: 6px 0;">Retur Barang - <span style="font-weight: normal;">${noNota}</span></h4>
+      <p style="margin: 4px 0;"><strong>Vendor:</strong> ${vendor}</p>
+      <p style="margin: 4px 0;"><strong>Admin:</strong> ${admin}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Barcode</th>
+            <th>Nama Barang</th>
+            <th>Qty</th>
+            <th>Keterangan</th>
+            ${mode === 'konfirmasi' ? '<th>Tgl Konfirmasi</th>' : ''}
+            <th>Tgl Ambilan</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+    </div>
+  `;
+
+  const element = document.createElement('div');
+  element.innerHTML = content;
+  document.body.appendChild(element);
+
+  html2pdf().set({
+    margin: 5,
+    filename: `Retur-${noNota}.pdf`,
+    image: { type: 'png', quality: 0.98 },
+    html2canvas: { scale: 4, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(element).save().then(() => {
+    document.body.removeChild(element);
+  });
+}
+
+    document.addEventListener('DOMContentLoaded', switchFormMode);
+  </script>
+</body>
+</html>
