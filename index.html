@@ -7,7 +7,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     :root {
-      --primary: #white;
+      --primary: #ffffff;
       --secondary: #4caf50;
       --accent: #2c3e50;
       --danger: #e74c3c;
@@ -28,7 +28,6 @@ mj,k/;      margin: 30px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     th, td {
-      border: 1px solid #ccc;
       padding: 10px;
       text-align: left;
     }
@@ -126,9 +125,18 @@ mj,k/;      margin: 30px;
     <label for="vendor">Vendor:</label>
     <select id="vendor">
       <option value="">-- Pilih Vendor --</option>
-      <option value="Megatech">Megatech</option>
-      <option value="Surya">Surya</option>
-      <option value="GMT">GMT</option>
+      <option value="Megatech Sparepart">Megatech Sparepart</option>
+      <option value="Megatech Acc">Megatech Acc</option>
+      <option value="Surya Cell Sparepart">Surya Cell Sparepart</option>
+      <option value="GMT Sparepart">GMT Sparepart</option>
+      <option value="Surya Pro">Surya Pro</option>
+      <option value="Braderpart">Braderpart</option>
+      <option value="Mobile Expert">Mobile Expert</option>
+      <option value="VACC">VACC</option>
+      <option value="PRO">PRO</option>
+      <option value="Anita Store">Anita Store</option>
+      <option value="Platinum V-Gen">Platiun V-Gen</option>
+
     </select>
   </div>
 
@@ -151,7 +159,8 @@ mj,k/;      margin: 30px;
 
   <button class="no-print" onclick="kirimData()">💾 Simpan ke Google Sheets</button>
   <button class="no-print" onclick="cetakPDF()">🖨 Cetak PDF</button>
-  <button class="no-print" onclick="clearForm()">🧹 Clear Form</button>
+  <button class="no-print" onclick="clearForm()">🧹 Hapus Baris</button>
+  
 
   <script>
     const masterDataURL = "https://script.google.com/macros/s/AKfycbwREG26axLg8M6LKpxKD66eBwSdYTYqpUowZ9S9FrHaur1fJNL2Bi3RhrIiYz-5Q0w/exec";
@@ -159,6 +168,7 @@ mj,k/;      margin: 30px;
 
     let masterBarang = {};
     let dataBarang = [];
+    let isSaved = true;
 
     fetch(masterDataURL)
       .then(res => res.json())
@@ -171,29 +181,35 @@ mj,k/;      margin: 30px;
     }
 
     function switchFormMode() {
-      const mode = document.getElementById('formMode').value;
-      const noNota = document.getElementById('noNota');
-      document.querySelector('.konf-only').classList.toggle('hidden', mode !== 'konfirmasi');
+  if (!isSaved && !confirm("Data belum disimpan. Lanjut ganti mode?")) {
+    document.getElementById('formMode').value =
+      (document.getElementById('formMode').value === 'retur') ? 'konfirmasi' : 'retur';
+    return;
+  }
 
-      const now = new Date();
-      const datePart = now.toISOString().slice(0,10).replace(/-/g, '');
-      const prefix = mode === 'konfirmasi' ? 'KONF' : 'RET';
-      const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
-      noNota.value = `${prefix}-${datePart}-${randomPart}`;
+  const mode = document.getElementById('formMode').value;
+  const noNota = document.getElementById('noNota');
+  document.querySelector('.konf-only').classList.toggle('hidden', mode !== 'konfirmasi');
 
-      const headerRow = document.getElementById("tableHeaderRow");
-      headerRow.innerHTML = `
-        <th>Barcode</th>
-        <th>Nama Barang</th>
-        <th>Qty</th>
-        <th>Keterangan</th>
-        ${mode === 'konfirmasi' ? '<th>Tanggal Konfirmasi</th>' : ''}
-        <th>Tanggal Ambilan</th>
-        <th>Aksi</th>`;
-        
-      renderTabel();
-    }
+  const now = new Date();
+  const datePart = now.toISOString().slice(0,10).replace(/-/g, '');
+  const prefix = mode === 'konfirmasi' ? 'KONF' : 'RET';
+  const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+  noNota.value = `${prefix}-${datePart}-${randomPart}`;
 
+  const headerRow = document.getElementById("tableHeaderRow");
+  headerRow.innerHTML = `
+    <th>No</th>
+    <th>Barcode</th>
+    <th>Nama Barang</th>
+    <th>Qty</th>
+    <th>Keterangan</th>
+    ${mode === 'konfirmasi' ? '<th>Tanggal Konfirmasi</th>' : ''}
+    <th>Tanggal Ambilan</th>
+    <th>Aksi</th>`;
+    
+  renderTabel();
+}
     function formatTanggal(inputDate) {
       if (!inputDate) return '';
       const [year, month, day] = inputDate.split("-");
@@ -214,6 +230,7 @@ mj,k/;      margin: 30px;
         return;
       }
       dataBarang.push(item);
+      isSaved = false;
       renderTabel();
       clearForm();
     }
@@ -223,19 +240,20 @@ mj,k/;      margin: 30px;
       const mode = document.getElementById('formMode').value;
       tbody.innerHTML = '';
       dataBarang.forEach((item, i) => {
-        const row = tbody.insertRow();
-        row.insertCell().textContent = item.barcode;
-        row.insertCell().textContent = item.namaBarang;
-        row.insertCell().textContent = item.qty;
-        row.insertCell().textContent = item.keterangan;
-        if (mode === 'konfirmasi') row.insertCell().textContent = item.tglKonfirmasi;
-        row.insertCell().textContent = item.tglAmbil;
-        row.insertCell().innerHTML = `<span class='action-btn' onclick='hapusBarang(${i})'>Hapus</span>`;
-      });
+      const row = tbody.insertRow();
+      row.insertCell().textContent = i + 1; // nomor urut
+      row.insertCell().textContent = item.barcode;
+      row.insertCell().textContent = item.namaBarang;
+      row.insertCell().textContent = item.qty;
+      row.insertCell().textContent = item.keterangan;
+      if (mode === 'konfirmasi') row.insertCell().textContent = item.tglKonfirmasi;
+      row.insertCell().textContent = item.tglAmbil;
+      row.insertCell().innerHTML = `<span class='action-btn' onclick='hapusBarang(${i})'>Hapus</span>`;
+    });
     }
 
     function clearForm() {
-      ['barcode','namaBarang','qty','keterangan','tglAmbil','tglKonfirmasi'].forEach(id => document.getElementById(id).value = '');
+          ['barcode','namaBarang','qty','keterangan','tglAmbil','tglKonfirmasi'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('barcode').focus();
     }
 
@@ -258,19 +276,25 @@ mj,k/;      margin: 30px;
         body: JSON.stringify(payload)
       })
       .then(res => res.text())
-      .then(text => alert("Data berhasil dikirim: " + text))
-      .catch(err => alert("Gagal mengirim data.\n" + err.message));
-    }
+      .then(text => {
+  alert("Data berhasil dikirim: " + text);
+  isSaved = true;
+})
+.catch(err => alert("Gagal mengirim data.\n" + err.message));
+}
 
-    function cetakPDF() {
+   function cetakPDF() {
+    if (!isSaved && !confirm("Data belum disimpan. Lanjut cetak PDF?")) return;
   const noNota = document.getElementById('noNota').value;
   const vendor = document.getElementById('vendor').value;
+  const tglNota = document.getElementById('tglNota').value;
   const admin = document.getElementById('admin').value;
   const mode = document.getElementById('formMode').value;
 
   let rowsHTML = '';
-  dataBarang.forEach(item => {
+  dataBarang.forEach((item, i) => {
     rowsHTML += `<tr>
+      <td>${i + 1}</td>
       <td>${item.barcode}</td>
       <td>${item.namaBarang}</td>
       <td>${item.qty}</td>
@@ -284,34 +308,28 @@ mj,k/;      margin: 30px;
       table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 10px;
-        page-break-inside: auto;
-      }
-      tr {
-        page-break-inside: avoid;
-        page-break-after: auto;
-      }
-      thead {
-        display: table-header-group;
-      }
-      tfoot {
-        display: table-footer-group;
+        font-size: 11px;
       }
       th, td {
-        padding: 4px;
-        border: 1px solid #ccc;
+        padding: 6px;
         text-align: left;
+        border: none;
+      }
+      thead {
+        font-weight: bold;
       }
     </style>
-    <div style="font-family: Arial, sans-serif; font-size: 10px; color: black; padding: 20px;">
+    <div style="font-family: Arial, sans-serif; font-size: 11px; color: black; padding: 20px;">
       <h3 style="margin: 0;">ALF Sparepart & Acc Hp</h3>
       <p style="margin: 4px 0;"><strong>Alamat:</strong> Jl. Veteran No.75, Bareng Lor, Klaten Utara, Klaten</p>
       <h4 style="margin: 6px 0;">Retur Barang - <span style="font-weight: normal;">${noNota}</span></h4>
       <p style="margin: 4px 0;"><strong>Vendor:</strong> ${vendor}</p>
+      <p style="margin: 4px 0;"><strong>TGL Nota:</strong> ${tglNota}</p>
       <p style="margin: 4px 0;"><strong>Admin:</strong> ${admin}</p>
       <table>
         <thead>
           <tr>
+            <th>No</th>
             <th>Barcode</th>
             <th>Nama Barang</th>
             <th>Qty</th>
@@ -339,7 +357,12 @@ mj,k/;      margin: 30px;
     document.body.removeChild(element);
   });
 }
-
+window.addEventListener("beforeunload", function (e) {
+  if (!isSaved) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
     document.addEventListener('DOMContentLoaded', switchFormMode);
   </script>
 </body>
